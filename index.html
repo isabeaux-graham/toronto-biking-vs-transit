@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Toronto Biking vs Transit</title>
+<!-- <link rel="icon" href="favicon2.png" media="(prefers-color-scheme: light)">
+<link rel="icon" href="favicon6.png" media="(prefers-color-scheme: dark)"> -->
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700&family=PT+Serif:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #ffffff;
+    --ink: #1c2330;
+    --muted: #5f6b7a;
+    --line: #dde2e8;
+    --accent: #d6e6e9;          /* selected-button fill (light blue from your screenshot) */
+    --accent-ink: #1c2330;      /* text on the selected button */
+    --transit-ink: #A90B72;     /* dark pink, same as DIFF_COLORS.transitBig in app.js */
+    --bike-ink: #16803C;        /* dark green, same as DIFF_COLORS.bikeBig in app.js */
+    --shadow: 0 2px 14px rgba(20, 30, 45, .18);
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { font: 16px/1.45 Jost, "Century Gothic", sans-serif; color: var(--ink); background: #e9edf1; }
+  #map { position: absolute; inset: 0; }
+
+  .panel {
+    position: absolute; top: 12px; left: 12px; z-index: 2;
+    width: 400px; max-height: calc(100% - 24px); overflow: auto;
+    background: var(--bg); border-radius: 10px; box-shadow: var(--shadow); padding: 16px;
+  }
+  h1 { font-family: "PT Serif", Georgia, serif; font-size: 36px; line-height: 1.25; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 14px; font-size: 16px; }
+
+  /* ===== MODE BUTTONS: edit spacing / corner curvature / size here ===== */
+  .modes { display: flex; gap: 8px; margin-bottom: 16px; }          /* gap = space between buttons */
+  .modes button {
+    flex: 1;                                                         /* equal widths; remove for natural width */
+    font: inherit; font-size: 13px; padding: 8px 6px;               /* padding = button height / width */
+    border: 1px solid var(--line);
+    border-radius: 4px;                                              /* corner curvature */
+    background: var(--bg); color: var(--ink); cursor: pointer;
+  }
+  .modes button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); font-weight: 600; border-color: var(--accent); }
+  .modes button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  /* ===== end mode buttons ===== */
+
+  .section-title { font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 6px;}
+  /* ===== HORIZONTAL LEGEND ===== */
+  .legend { margin-bottom: 0; }   /* the panel's 16px bottom padding is the gap below the legend */
+  .scale-above {position: relative; display: flex; justify-content: space-between; margin-bottom: 6px;
+    font-size: 12px; text-transform: uppercase; font-weight: 500; letter-spacing: .04em; color: var(--muted);
+  }
+  .scale-above .tick { position: absolute; left: 50%; top: 0; height: 100%; border-left: 1px solid var(--ink); }
+  .scale { display: flex; gap: 2px; }                                 /* gap = space between colour boxes */
+  .scale i { flex: 1; height: 14px; border-radius: 2px; border: 1px solid rgba(0,0,0,.08); }
+  .scale-labels { position: relative; height: 16px; line-height: 16px; margin-top: 4px; font-size: 12px; }
+  .scale-labels .unit { position: absolute; top: 0; left: 100%; margin-left: 3px; transform: none; }   /* 'minutes' hangs off the number so the number stays centred */
+  .scale-labels span { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .unreach { display: flex; align-items: center; gap: 8px; font-size: 12px; margin-top: 8px; }
+  .unreach i { width: 22px; height: 12px; border-radius: 3px; border: 1px solid rgba(0,0,0,.08); }
+
+  /*.stats { border-top: 1px solid var(--line); padding-top: 12px; }
+  .stats table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .stats td { padding: 2px 0; }
+  .stats tr.t td { color: var(--transit-ink); }
+  .stats tr.b td { color: var(--bike-ink); }
+  .stats td:last-child { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+  .note { color: var(--muted); font-size: 12px; margin: 10px 0 0; }
+  .hint { background: #eef5f8; border-radius: 8px; padding: 8px 10px; margin: 0 0 14px; font-size: 13px; }
+*/
+  #tip {
+    position: absolute; z-index: 3; pointer-events: none; display: none;
+    background: #fff; color: var(--ink); border: 1px solid var(--line); padding: 8px 10px; border-radius: 8px; font-size: 12.5px;
+    box-shadow: var(--shadow); white-space: nowrap;
+  }
+  #tip b { font-weight: 600; }
+  #tip .tip-single { text-align: center; min-width: 88px; padding: 2px 6px; }
+  #tip .tip-big { font-size: 36px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  #tip .tip-unit { font-size: 18px; font-weight: 600; color: var(--muted); }
+  #tip .tip-none { font-size: 14px; }
+  #tip .tip-kind { font-size: 13px; font-weight: 600; margin-top: 2px; }
+  #tip .tip-note { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+  #tip svg text { font-family: inherit; font-variant-numeric: tabular-nums; }
+  #tip .row { display: flex; justify-content: space-between; gap: 14px; }
+  #status { position: absolute; inset: 0; z-index: 5; display: grid; place-items: center; background: rgba(255,255,255,.88); font-size: 15px; padding: 24px; text-align: center; }
+  #status.hidden { display: none; }
+
+  @media (max-width: 640px) {
+    .panel { top: auto; bottom: 0; left: 0; right: 0; width: auto; max-height: 48%; border-radius: 14px 14px 0 0; padding: 12px 14px 16px; }
+  }
+</style>
+</head>
+<body>
+<div id="map"></div>
+
+<aside class="panel" aria-label="Controls">
+  <h1>TORONTO</h1>
+  <p class="sub" id="sub">Travel time via biking and transit to anywhere in the city</p>
+
+  <div class="modes" role="group" aria-label="Map mode">
+    <button type="button" data-mode="walk" aria-pressed="false">Transit</button>
+    <button type="button" data-mode="bike" aria-pressed="false">Bike</button>
+    <button type="button" data-mode="saved" aria-pressed="true">Bike vs Transit</button>
+  </div>
+
+  <!-- <p class="hint"><b>Click anywhere</b> on the map to move the destination. The outlined cell is the destination now.</p> -->
+
+  <p class="section-title" id="legend-title">Minutes to destination</p>
+  <div class="legend" id="legend"></div>
+
+  <!-- <div class="stats">
+    <p class="section-title">Reach the destination within 30 minutes</p>
+    <table>
+      <tr class="t"><td>Transit</td><td id="s-walk">-</td></tr>
+      <tr class="b"><td>Bike</td><td id="s-bike">-</td></tr>
+    </table>
+    <p class="note" id="note"></p>
+  </div> -->
+</aside>
+
+<div id="tip"></div>
+<div id="status">Loading...</div>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

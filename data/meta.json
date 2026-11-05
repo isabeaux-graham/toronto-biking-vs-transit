@@ -1,0 +1,21 @@
+{
+  "n": 2688,
+  "cell_size_m": 500,
+  "departure": "2026-11-03T09:00:00",
+  "max_minutes": 180,
+  "unreachable": 255,
+  "layout": "uint8, byte index = destination_id * n + origin_id",
+  "modes": [
+    {
+      "key": "walk",
+      "file": "walk_transit.bin",
+      "label": "Transit + walk"
+    },
+    {
+      "key": "bike",
+      "file": "bike.bin",
+      "label": "Bike"
+    }
+  ],
+  "generated": "2026-11-05T09:03:45"
+}
